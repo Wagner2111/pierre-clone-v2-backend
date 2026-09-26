@@ -18,7 +18,7 @@ router.post('/register', async (req, res) => {
     )
     const userId = result.rows[0].id
     const token = generateToken(userId)
-    res.status(201).json({ user: { id: userId, email, name }, token })
+    res.status(201).json({ data: { user: { id: userId, email, name }, accessToken: token, refreshToken: token } })
   } catch (err) {
     if (err.message.includes('duplicate')) {
       return res.status(400).json({ error: 'Email already registered' })
@@ -50,7 +50,7 @@ router.post('/login', async (req, res) => {
     console.log('✓ Password valid for:', email)
     const token = generateToken(user.id)
     console.log('✓ Token generated, sending response')
-    res.json({ user: { id: user.id, email: user.email, name: user.name }, token })
+    res.json({ data: { user: { id: user.id, email: user.email, name: user.name }, accessToken: token, refreshToken: token } })
   } catch (err) {
     console.error('❌ Login error:', err.message)
     res.status(500).json({ error: 'Login failed' })

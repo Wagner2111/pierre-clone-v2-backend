@@ -118,6 +118,21 @@ export const initializeDatabase = async () => {
       )
     `)
 
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS pluggy_connections (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        pluggy_id TEXT NOT NULL,
+        pluggy_name TEXT NOT NULL,
+        bank_name TEXT NOT NULL,
+        account_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        FOREIGN KEY(account_id) REFERENCES accounts(id),
+        UNIQUE(user_id, pluggy_id)
+      )
+    `)
+
     console.log('✅ Database tables initialized')
   } catch (err) {
     console.error('DB initialization error:', err)

@@ -52,12 +52,12 @@ initializeDatabase()
 app.use('/api/auth', authRoutes)
 app.use('/api/transactions', transactionRoutes)
 app.use('/api/accounts', accountRoutes)
+app.use('/api/pluggy', pluggyRoutes)
 // TODO: Fix remaining routes for PostgreSQL
 // app.use('/api/budgets', budgetRoutes)
 // app.use('/api/recurring', recurringRoutes)
 // app.use('/api/categories', categoryRoutes)
 // app.use('/api/tags', tagRoutes)
-// app.use('/api/pluggy', pluggyRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {

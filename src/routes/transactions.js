@@ -4,40 +4,26 @@ import { authMiddleware } from '../middleware/auth.js'
 
 const router = express.Router()
 
-router.get('/', authMiddleware, (req, res) => {
-  db.all(
-    'SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC',
-    [req.userId],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: 'Query failed' })
-      res.json(rows || [])
-    }
-  )
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY date DESC', [req.userId])
+    res.json(result.rows || [])
+  } catch (err) {
+    res.status(500).json({ error: 'Query failed' })
+  }
 })
 
-router.post('/', authMiddleware, (req, res) => {
-  const { description, category, value, type, date } = req.body
-
-  if (!description || !category || value === undefined || !type || !date) {
-    return res.status(400).json({ error: 'Missing required fields' })
-  }
-
-  db.run(
-    'INSERT INTO transactions (user_id, description, category, value, type, date) VALUES (?, ?, ?, ?, ?, ?)',
-    [req.userId, description, category, value, type, date],
-    function (err) {
-      if (err) return res.status(500).json({ error: 'Insert failed' })
-      res.status(201).json({
-        id: this.lastID,
-        user_id: req.userId,
-        description,
-        category,
-        value,
-        type,
-        date
-      })
+router.post('/', authMiddleware, async (req, res) => {
+  try {
+    const { description, category, value, type, date } = req.body
+    if (!description || !category || value === undefined || !type || !date) {
+      return res.status(400).json({ error: 'Missing required fields' })
     }
-  )
+    const result = await db.query('INSERT INTO transactions (user_id, description, category, value, type, date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [req.userId, description, category, value, type, date])
+    res.status(201).json({ id: result.rows[0].id, user_id: req.userId, description, category, value, type, date })
+  } catch (err) {
+    res.status(500).json({ error: 'Insert failed' })
+  }
 })
 
 router.get('/:id', authMiddleware, (req, res) => {
@@ -52,16 +38,14 @@ router.get('/:id', authMiddleware, (req, res) => {
   )
 })
 
-router.delete('/:id', authMiddleware, (req, res) => {
-  db.run(
-    'DELETE FROM transactions WHERE id = ? AND user_id = ?',
-    [req.params.id, req.userId],
-    function (err) {
-      if (err) return res.status(500).json({ error: 'Delete failed' })
-      if (this.changes === 0) return res.status(404).json({ error: 'Not found' })
-      res.json({ message: 'Deleted' })
-    }
-  )
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const result = await db.query('DELETE FROM transactions WHERE id = $1 AND user_id = $2', [req.params.id, req.userId])
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Not found' })
+    res.json({ message: 'Deleted' })
+  } catch (err) {
+    res.status(500).json({ error: 'Delete failed' })
+  }
 })
 
 export default router

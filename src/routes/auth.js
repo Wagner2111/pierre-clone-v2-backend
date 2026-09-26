@@ -8,59 +8,45 @@ const router = express.Router()
 router.post('/register', async (req, res) => {
   try {
     const { email, password, name } = req.body
-
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Missing required fields' })
     }
-
     const passwordHash = await bcrypt.hash(password, 10)
-
-    db.run(
-      'INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)',
-      [email, name, passwordHash],
-      function (err) {
-        if (err) {
-          if (err.message.includes('UNIQUE')) {
-            return res.status(400).json({ error: 'Email already registered' })
-          }
-          return res.status(500).json({ error: 'Registration failed' })
-        }
-
-        const token = generateToken(this.lastID)
-        res.status(201).json({
-          user: { id: this.lastID, email, name },
-          token
-        })
-      }
+    const result = await db.query(
+      'INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id',
+      [email, name, passwordHash]
     )
+    const userId = result.rows[0].id
+    const token = generateToken(userId)
+    res.status(201).json({ user: { id: userId, email, name }, token })
   } catch (err) {
-    res.status(500).json({ error: 'Registration error' })
+    if (err.message.includes('duplicate')) {
+      return res.status(400).json({ error: 'Email already registered' })
+    }
+    res.status(500).json({ error: 'Registration failed' })
   }
 })
 
-router.post('/login', (req, res) => {
-  const { email, password } = req.body
-
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password required' })
-  }
-
-  db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
-    if (err || !user) {
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' })
+    }
+    const result = await db.query('SELECT * FROM users WHERE email = $1', [email])
+    const user = result.rows[0]
+    if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' })
     }
-
     const validPassword = await bcrypt.compare(password, user.password_hash)
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' })
     }
-
     const token = generateToken(user.id)
-    res.json({
-      user: { id: user.id, email: user.email, name: user.name },
-      token
-    })
-  })
+    res.json({ user: { id: user.id, email: user.email, name: user.name }, token })
+  } catch (err) {
+    res.status(500).json({ error: 'Login failed' })
+  }
 })
 
 router.post('/logout', (req, res) => {
